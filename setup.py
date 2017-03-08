@@ -20,11 +20,16 @@ setup(
     long_description="Plugin for catkin_tools to build plain Python packages.",
     license='Apache 2.0',
     entry_points={
+        'console_scripts': [
+            'create_python_package_xmls = catkin_tools_python.create_python_package_xmls:main',
+        ],
         'catkin_tools.jobs': [
             'python = catkin_tools_python:description',
         ]
     },
     install_requires=[
-        'catkin_tools'
+        'catkin_tools>=0.4.4',
+        'empy',
+        'pkginfo>=0.9.1'
     ]
 )
