@@ -13,11 +13,9 @@
 # limitations under the License.
 
 from catkin_tools_python.job import create_python_build_job
-from catkin_tools_python.job import create_python_clean_job
 
 description = dict(
     build_type='python',
     description='Builds a plain python package.',
-    create_build_job=create_python_build_job,
-    create_clean_job=create_python_clean_job
+    create_build_job=create_python_build_job
 )
