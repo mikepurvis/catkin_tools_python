@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+import pkginfo
 
 from catkin_tools.jobs.cmake import copy_install_manifest
 from catkin_tools.jobs.cmake import generate_env_file
@@ -108,6 +109,28 @@ def create_python_build_job(context, package, package_path, dependencies, force_
         context=context,
         install_target=dest_path
     ))
+
+    return Job(
+        jid=package.name,
+        deps=dependencies,
+        env=job_env,
+        stages=stages)
+
+
+def create_python_clean_job(context, package, package_path, dependencies, dry_run,
+                            clean_build, clean_devel, clean_install):
+    stages = []
+
+    # Package build space path
+    build_space = context.package_build_space(package)
+
+    # Package metadata path
+    metadata_path = context.package_metadata_path(package)
+
+    # Environment dictionary for the job, empty for a clean job
+    job_env = {}
+
+    stages = []
 
     return Job(
         jid=package.name,
