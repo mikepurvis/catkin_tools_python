@@ -77,37 +77,14 @@ def create_python_build_job(context, package, package_path, dependencies, force_
         dest_path=os.path.join(metadata_path, 'package.xml')
     ))
 
-    # Python setup install
-    stages.append(CommandStage(
-        'build',
-        ['/usr/bin/env', 'python', 'setup.py',
-         'build', '--build-base', build_space],
-        cwd=pkg_dir
-    ))
-
-    # Python setup install
-    stages.append(CommandStage(
-        'install',
-        ['/usr/bin/env', 'python', 'setup.py',
-         'build', '--build-base', build_space,
-         'install', '--old-and-unmanageable', '--prefix', dest_path],
-        cwd=pkg_dir,
-        locked_resource='installspace'
-    ))
-
-    '''
-    # I tried to make this work with pip, in part to get a proper installation manifest for
-    # cleaning purposes, but it seemed to have a lot of issues. In the end it was easier to simply
-    # use setuptools directly.
+    # Install package using pip
     stages.append(CommandStage(
         'pip-install',
         ['/usr/bin/env', 'pip', 'install', '.', '-b', build_space,
-                  '--force-reinstall', '--upgrade', '--no-deps',
-                  '--install-option', '--old-and-unmanageable',
-                  '--install-option', '--prefix', '--install-option', dest_path],
+                  '--force-reinstall', '--upgrade', '--no-deps', '--no-binary',
+                  '--install-option', '--prefix=%s' % dest_path],
         cwd=pkg_dir,
         locked_resource='installspace'))
-    '''
 
     # Determine the location where the setup.sh file should be created
     stages.append(FunctionStage(
