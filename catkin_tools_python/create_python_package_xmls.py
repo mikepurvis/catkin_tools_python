@@ -8,15 +8,15 @@ import sys
 
 PACKAGE_XML_TEMPLATE = '''<?xml version="1.0"?>
 <package format="2">
-  <name>python-@(p.name.lower())</name>
-  <version>@(p.version)</version>
+  <name>@(filters.name(p.name))</name>
+  <version>@(filters.version(p.version))</version>
   <description>@(p.summary)</description>
 @[if p.maintainer and p.maintainer_email]@
   <maintainer email="@(p.maintainer_email)">@(p.maintainer)</maintainer>
 @[else]@
   <maintainer email="@(p.author_email)">@(p.author)</maintainer>
 @[end if]@
-  <license>@(p.license)</license>
+  <license>@(p.license or 'Unknown')</license>
 
   <buildtool_depend>python</buildtool_depend>
 
@@ -28,11 +28,25 @@ DESCRIPTION = 'Walk a source workspace, looking for paths containing a ' + \
     'PKG-INFO file but not a package.xml file. When found, create an ' + \
     'appropriate package.xml file in those paths.'
 
+
 def get_arg_parser():
     parser = argparse.ArgumentParser(description=DESCRIPTION)
     parser.add_argument('roots', metavar='ROOT', type=str, nargs='*',
                         help='Path to begin searching in.', default=['src'])
     return parser
+
+
+class Filters:
+    @staticmethod
+    def name(name):
+        return 'python-' + name.lower().replace('_', '-')
+
+    @staticmethod
+    def version(version):
+        version_parts = version.split('.')
+        version_parts += ['0'] * (3 - len(version_parts))
+        return '.'.join(version_parts)
+
 
 def create_package_xmls(root_dir):
     if not os.path.exists(root_dir):
@@ -46,8 +60,9 @@ def create_package_xmls(root_dir):
                 print('Exists:  %s' % package_xml_path)
             else:
                 with open(package_xml_path, 'w') as f:
-                    f.write(em.expand(PACKAGE_XML_TEMPLATE, { 'p': p }))
+                    f.write(em.expand(PACKAGE_XML_TEMPLATE, { 'p': p, 'filters': Filters }))
                 print('Created: %s' % package_xml_path)
+
 
 def main():
     args = get_arg_parser().parse_args()
