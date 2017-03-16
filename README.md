@@ -1,4 +1,4 @@
-catkin_tools_python
+catkin_tools_python [![Build Status](https://travis-ci.org/mikepurvis/catkin_tools_python.svg?branch=master)](https://travis-ci.org/mikepurvis/catkin_tools_python)
 ===================
 
 This is a buildtype plugin for [catkin_tools][1] which allows building plain Python packages
