@@ -6,6 +6,9 @@ import os
 from pkginfo import UnpackedSDist
 import sys
 
+from catkin_tools_python import filters
+
+
 PACKAGE_XML_TEMPLATE = '''<?xml version="1.0"?>
 <package format="2">
   <name>@(filters.name(p.name))</name>
@@ -36,18 +39,6 @@ def get_arg_parser():
     return parser
 
 
-class Filters:
-    @staticmethod
-    def name(name):
-        return 'python-' + name.lower().replace('_', '-')
-
-    @staticmethod
-    def version(version):
-        version_parts = version.split('.')
-        version_parts += ['0'] * (3 - len(version_parts))
-        return '.'.join(version_parts)
-
-
 def create_package_xmls(root_dir):
     if not os.path.exists(root_dir):
         print('Path [%s] does not exist, ignoring.' % root_dir)
@@ -60,7 +51,7 @@ def create_package_xmls(root_dir):
                 print('Exists:  %s' % package_xml_path)
             else:
                 with open(package_xml_path, 'w') as f:
-                    f.write(em.expand(PACKAGE_XML_TEMPLATE, { 'p': p, 'filters': Filters }))
+                    f.write(em.expand(PACKAGE_XML_TEMPLATE, { 'p': p, 'filters': filters }))
                 print('Created: %s' % package_xml_path)
 
 
