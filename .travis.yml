@@ -1,28 +1,28 @@
 sudo: false
-dist: trusty
 language: generic
-
-#addons:
-#  apt:
-#    packages:
-#    - libboost-all-dev
-#    - libconsole-bridge-dev
+matrix:
+  include:
+    - dist: trusty
+      os: linux
+      env: PYTHON=/usr/bin/python2.7
+    - os: osx
+      env: PYTHON=/usr/bin/python
 
 install:
-  - virtualenv -p /usr/bin/python2.7 ~/env
-  - ~/env/bin/pip install --upgrade pip
-  - ~/env/bin/pip install . rosinstall_generator wstool
+  - virtualenv ~/venv -p $PYTHON
+  - source ~/venv/bin/activate
+  - pip install --upgrade pip
+  - pip install . rosinstall_generator wstool
 
-script:
-  - source ~/env/bin/activate
+before_script:
   - mkdir -p demo_ws/src && cd demo_ws
   - rosinstall_generator cmake_modules --deps --tar --rosdistro indigo > src/.rosinstall
   - curl https://gist.githubusercontent.com/mikepurvis/530df5cd34967f6a0aded2fea5c440db/raw/ros-base-python.yaml >> src/.rosinstall
   - wstool up -t src -j8
-  - create_python_package_xmls src
 
+script:
+  - create_python_package_xmls src
   - catkin config --isolate-devel --merge-install --install
   - catkin build
- 
   - find install
   - install/env.sh python -c 'import yaml; print yaml.__file__'
