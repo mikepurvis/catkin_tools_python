@@ -100,12 +100,14 @@ def create_python_build_job(context, package, package_path, dependencies, force_
         cwd=pkg_dir))
 
     # Special path rename required only on Debian.
-    if any(map(lambda path: 'dist-packages' in path, sys.path)):
+    python_install_dir = get_python_install_dir()
+    if 'dist-packages' in python_install_dir:
+        python_install_dir_site = python_install_dir.replace('dist-packages', 'site-packages')
         stages.append(FunctionStage(
             'debian-fix',
             renamepath,
-            source_path=os.path.join(build_space, 'install', 'lib', 'python2.7', 'site-packages'),
-            dest_path=os.path.join(build_space, 'install', 'lib', 'python2.7', 'dist-packages')
+            source_path=os.path.join(build_space, 'install', python_install_dir_site),
+            dest_path=os.path.join(build_space, 'install', python_install_dir)
         ))
 
     # Copy files from staging area into final install path, using rsync. Despite
