@@ -1,0 +1,16 @@
+sudo: false
+
+install:
+  - pip install . rosinstall_generator wstool
+
+script:
+  - mkdir -p demo_ws/src && cd demo_ws
+  - rosinstall_generator ros_base --deps --tar --rosdistro indigo > src/.rosinstall
+  - curl https://gist.githubusercontent.com/mikepurvis/530df5cd34967f6a0aded2fea5c440db/raw/ros-base-python.yaml >> src/.rosinstall
+  - wstool up -t src -j8
+  - create_python_package_xmls src
+
+  - catkin config --isolate-devel --merge-install --install
+  - catkin build
+ 
+  - install/env.sh python -c 'import yaml; print yaml.__file__'
