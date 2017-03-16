@@ -31,6 +31,12 @@ from catkin_tools.execution.stages import CommandStage
 from catkin_tools.execution.stages import FunctionStage
 
 
+def renamepath(logger, event_queue, source_path, dest_path):
+    """FunctionStage functor that renames a file."""
+    os.rename(source_path, dest_path)
+    return 0
+
+
 def create_python_build_job(context, package, package_path, dependencies, force_cmake, pre_clean):
 
     # Package source space path
@@ -78,11 +84,9 @@ def create_python_build_job(context, package, package_path, dependencies, force_
         dest_path=os.path.join(metadata_path, 'package.xml')
     ))
 
-    debian = any(map(lambda path: 'dist-packages' in path, sys.path))
-
-    # Install package using pip
+    # Install package using pip into temporary staging area.
     stages.append(CommandStage(
-        'pip-install',
+        'pip',
         ['/usr/bin/env', 'pip',
             '--no-cache-dir',
             'install', '.',
@@ -92,8 +96,26 @@ def create_python_build_job(context, package, package_path, dependencies, force_
             '--no-binary=:all:',
             '--upgrade',
             '--no-deps',
-            '--prefix=%s' % dest_path] +
-        (['--install-option', '--install-layout=deb'] if debian else []),
+            '--prefix=%s' % os.path.join(build_space, 'install')],
+        cwd=pkg_dir))
+
+    # Special path rename required only on Debian.
+    if any(map(lambda path: 'dist-packages' in path, sys.path)):
+        stages.append(FunctionStage(
+            'debian-fix',
+            renamepath,
+            source_path=os.path.join(build_space, 'install', 'lib', 'python2.7', 'site-packages'),
+            dest_path=os.path.join(build_space, 'install', 'lib', 'python2.7', 'dist-packages')
+        ))
+
+    # Copy files from staging area into final install path, using rsync. Despite
+    # having to spawn a process, this is much faster than copying one by one
+    # with native Python.
+    stages.append(CommandStage(
+        'install',
+        ['/usr/bin/rsync', '-a',
+            os.path.join(build_space, 'install', ''),
+            dest_path],
         cwd=pkg_dir,
         locked_resource='installspace'))
 
