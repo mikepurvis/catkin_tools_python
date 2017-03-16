@@ -14,6 +14,7 @@
 
 import os
 import pkginfo
+import sys
 
 from catkin_tools.jobs.cmake import copy_install_manifest
 from catkin_tools.jobs.cmake import generate_env_file
@@ -77,12 +78,22 @@ def create_python_build_job(context, package, package_path, dependencies, force_
         dest_path=os.path.join(metadata_path, 'package.xml')
     ))
 
+    debian = any(map(lambda path: 'dist-packages' in path, sys.path))
+
     # Install package using pip
     stages.append(CommandStage(
         'pip-install',
-        ['/usr/bin/env', 'pip', 'install', '.', '-b', build_space,
-                  '--force-reinstall', '--upgrade', '--no-deps', '--no-binary',
-                  '--install-option', '--prefix=%s' % dest_path],
+        ['/usr/bin/env', 'pip',
+            '--no-cache-dir',
+            'install', '.',
+            '--build', build_space,
+            '--force-reinstall',
+            '--ignore-installed',
+            '--no-binary=:all:',
+            '--upgrade',
+            '--no-deps',
+            '--prefix=%s' % dest_path] +
+        (['--install-option', '--install-layout=deb'] if debian else []),
         cwd=pkg_dir,
         locked_resource='installspace'))
 
