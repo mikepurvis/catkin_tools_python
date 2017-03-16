@@ -8,11 +8,27 @@ included a script which can be used before the build to spider the workspace, an
 the missing `package.xml` files for Python packages, based on the `PKG-INFO` file which is
 standard with the Python sdist archive format.
 
+**What it isn't:** This plugin _does not_ allow Python packages to be built via the
+conventional `catkin_make` or `catkin_make_isolated` tools, nor does it allow plain
+Python packages to be released using Bloom.
+
 [1]: https://catkin-tools.readthedocs.io
 
 
 Demonstration
 -------------
+
+You'll want to set up a virtualenv with catkin_tools and this package in it:
+
+```
+virtualenv catkin_tools_env
+source catkin_tools_env/bin/activate
+pip install git+https://github.com/mikepurvis/catkin_tools_python.git
+```
+
+Then create a workspace with some regular ROS packages in it, and also add in a bunch of plain
+Python packages, downloaded directly from PyPI, using the included tool to fill in the missing
+`package.xml` files:
 
 ```
 mkdir -p demo_ws/src && cd demo_ws
@@ -20,6 +36,13 @@ rosinstall_generator ros_base --deps --tar --rosdistro indigo > src/.rosinstall
 curl https://gist.githubusercontent.com/mikepurvis/530df5cd34967f6a0aded2fea5c440db/raw/ros-base-python.yaml >> src/.rosinstall
 wstool up -t src -j8
 create_python_package_xmls src
+```
+
+Now build that workspace. Note that we can't use the default "linked" develspace configuration,
+since that requires building `catkin` before everything else, and `catkin`'s dependencies are
+now here in the workspace—they need to build first!
+
+```
 catkin config --isolate-devel --merge-install --install
 catkin build
 ```
