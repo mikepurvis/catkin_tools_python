@@ -18,6 +18,14 @@ mapping = {
     'PyYAML': 'python-yaml'
 }
 
+comparisons = {
+    '>=': 'version_gte',
+    '>': 'version_gt',
+    '=': 'version_eq',
+    '<=': 'version_lte',
+    '<': 'version_lt'
+}
+
 def name(name):
     return mapping.get(name,
             'python-' + name.lower().replace('_', '-'))
