@@ -115,6 +115,14 @@ def create_python_build_job(context, package, package_path, dependencies, force_
             dest_path=os.path.join(build_space, 'install', python_install_dir)
         ))
 
+    # Create package install space.
+    stages.append(FunctionStage(
+        'mkdir-install',
+        makedirs,
+        path=dest_path
+    ))
+
+
     # Copy files from staging area into final install path, using rsync. Despite
     # having to spawn a process, this is much faster than copying one by one
     # with native Python.
