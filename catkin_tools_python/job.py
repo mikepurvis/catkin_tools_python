@@ -15,6 +15,7 @@
 import os
 import pkginfo
 import sys
+import threading
 
 from catkin_tools.jobs.cmake import copy_install_manifest
 from catkin_tools.jobs.cmake import generate_env_file
@@ -22,23 +23,62 @@ from catkin_tools.jobs.cmake import generate_setup_file
 from catkin_tools.jobs.cmake import get_python_install_dir
 
 from catkin_tools.jobs.utils import copyfiles
-from catkin_tools.jobs.utils import loadenv
 from catkin_tools.jobs.utils import makedirs
-from catkin_tools.jobs.utils import rmfiles
 from catkin_tools.utils import which
 
 from catkin_tools.execution.jobs import Job
 from catkin_tools.execution.stages import CommandStage
 from catkin_tools.execution.stages import FunctionStage
 
+import pip.commands.install
+import pip.utils.logging
+import pip.utils.ui
 
-PIP_EXEC = which('pip')
+import logging
+
+
 RSYNC_EXEC = which('rsync')
+
+pip_logger = logging.getLogger('pip')
+pip_logger.setLevel(logging.DEBUG)
+pip_logger.propagate = False
+
+pip.utils.ui.InteractiveSpinner = pip.utils.ui.NonInteractiveSpinner
+
+
+class PipLogHandler(logging.Handler):
+    _thread_loggers = {}
+
+    @classmethod
+    def emit(cls, record):
+        cls._thread_loggers[threading.current_thread().ident].out(record.getMessage())
+
+pip_logger.addHandler(PipLogHandler())
 
 
 def renamepath(logger, event_queue, source_path, dest_path):
-    """FunctionStage functor that renames a file."""
+    """FunctionStage functor which renames a filesystem object."""
     os.rename(source_path, dest_path)
+    return 0
+
+
+def pip_install(logger, event_queue, source_path, build_path, install_path):
+    """FunctionStage functor that calls pip."""
+
+    # This has to be set on a per-thread basis.
+    pip.utils.logging._log_state.indentation = 0
+    PipLogHandler._thread_loggers[threading.current_thread().ident] = logger
+
+    pip.commands.install.InstallCommand().main([
+        '--no-cache-dir',
+        source_path,
+        '--build', build_path,
+        '--force-reinstall',
+        '--ignore-installed',
+        '--no-binary=:all:',
+        '--upgrade',
+        '--no-deps',
+        '--prefix=%s' % install_path])
     return 0
 
 
@@ -64,16 +104,6 @@ def create_python_build_job(context, package, package_path, dependencies, force_
     # Create job stages
     stages = []
 
-    # Load environment for job.
-    stages.append(FunctionStage(
-        'loadenv',
-        loadenv,
-        locked_resource='installspace',
-        job_env=job_env,
-        package=package,
-        context=context
-    ))
-
     # Create package metadata dir
     stages.append(FunctionStage(
         'mkdir',
@@ -90,19 +120,13 @@ def create_python_build_job(context, package, package_path, dependencies, force_
     ))
 
     # Install package using pip into temporary staging area.
-    stages.append(CommandStage(
-        'pip',
-        [PIP_EXEC,
-            '--no-cache-dir',
-            'install', '.',
-            '--build', build_space,
-            '--force-reinstall',
-            '--ignore-installed',
-            '--no-binary=:all:',
-            '--upgrade',
-            '--no-deps',
-            '--prefix=%s' % os.path.join(build_space, 'install')],
-        cwd=pkg_dir))
+    stages.append(FunctionStage(
+        'pip-install',
+        pip_install,
+        source_path=pkg_dir,
+        build_path=build_space,
+        install_path=os.path.join(build_space, 'install')
+    ))
 
     # Special path rename required only on Debian.
     python_install_dir = get_python_install_dir()
@@ -152,7 +176,7 @@ def create_python_build_job(context, package, package_path, dependencies, force_
     return Job(
         jid=package.name,
         deps=dependencies,
-        env=job_env,
+        env={},
         stages=stages)
 
 
@@ -166,13 +190,10 @@ def create_python_clean_job(context, package, package_path, dependencies, dry_ru
     # Package metadata path
     metadata_path = context.package_metadata_path(package)
 
-    # Environment dictionary for the job, empty for a clean job
-    job_env = {}
-
     stages = []
 
     return Job(
         jid=package.name,
         deps=dependencies,
-        env=job_env,
+        env={},
         stages=stages)
