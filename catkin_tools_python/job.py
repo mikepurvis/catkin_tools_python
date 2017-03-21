@@ -25,10 +25,15 @@ from catkin_tools.jobs.utils import copyfiles
 from catkin_tools.jobs.utils import loadenv
 from catkin_tools.jobs.utils import makedirs
 from catkin_tools.jobs.utils import rmfiles
+from catkin_tools.utils import which
 
 from catkin_tools.execution.jobs import Job
 from catkin_tools.execution.stages import CommandStage
 from catkin_tools.execution.stages import FunctionStage
+
+
+PIP_EXEC = which('pip')
+RSYNC_EXEC = which('rsync')
 
 
 def renamepath(logger, event_queue, source_path, dest_path):
@@ -87,7 +92,7 @@ def create_python_build_job(context, package, package_path, dependencies, force_
     # Install package using pip into temporary staging area.
     stages.append(CommandStage(
         'pip',
-        ['/usr/bin/env', 'pip',
+        [PIP_EXEC,
             '--no-cache-dir',
             'install', '.',
             '--build', build_space,
@@ -115,7 +120,7 @@ def create_python_build_job(context, package, package_path, dependencies, force_
     # with native Python.
     stages.append(CommandStage(
         'install',
-        ['/usr/bin/rsync', '-a',
+        [RSYNC_EXEC, '-a',
             os.path.join(build_space, 'install', ''),
             dest_path],
         cwd=pkg_dir,
