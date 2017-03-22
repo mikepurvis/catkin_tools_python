@@ -10,6 +10,7 @@ matrix:
 
 install:
   - virtualenv ~/venv -p $PYTHON
+  - unset PYTHON
   - source ~/venv/bin/activate
   - pip install --upgrade pip
   - pip install . rosinstall_generator wstool
