@@ -32,7 +32,7 @@ from catkin_tools.execution.stages import CommandStage
 from catkin_tools.execution.stages import FunctionStage
 
 
-PIP_EXEC = which('pip')
+PYTHON_EXEC = os.environ.get('PYTHON', sys.executable)
 RSYNC_EXEC = which('rsync')
 
 
@@ -92,7 +92,7 @@ def create_python_build_job(context, package, package_path, dependencies, force_
     # Install package using pip into temporary staging area.
     stages.append(CommandStage(
         'pip',
-        [PIP_EXEC,
+        [PYTHON_EXEC, '-m', 'pip',
             '--no-cache-dir',
             'install', '.',
             '--build', build_space,

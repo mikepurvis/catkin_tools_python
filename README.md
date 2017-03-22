@@ -23,6 +23,7 @@ You'll want to set up a virtualenv with catkin_tools and this package in it:
 ```
 virtualenv catkin_tools_env
 source catkin_tools_env/bin/activate
+pip install -U pip
 pip install git+https://github.com/mikepurvis/catkin_tools_python.git
 ```
 
@@ -59,3 +60,21 @@ Note that this is just one of many possible workflows. If you don't want to gene
 `package.xml` files at build time as shown above, you could commit them along with the
 upstream code into git repos, which would allow `rosdistro_build_cache` to cache them
 and permit them to be resolved by `rosinstall_generator`.
+
+
+Notes
+-----
+
+**Which Python?** Rather than calling `setup.py` directly, this tool calls it via `pip`. This
+is mostly for convenience of implementation, since `pip` takes care of abstracting over a bunch
+of generational differences in the Python distribution tooling. However, one of the consequences
+of this is that this tool requires an up-to-date version of `pip`—version 1.5.4 which ships with
+Ubuntu Trusty isn't going to cut it.
+
+Because of this, the assumption is `catkin_tools_python` will use the same pip that's part of the
+environment (virtualenv) that `catkin_tools` itself is running out of. If you don't like this,
+you can set the `PYTHON` envvar to point to the Python interpreter which should run `pip`.
+
+Either way, the Python that runs pip will be the one whose path ends up in the shebang lines of
+and scripts installed into `bin`. Depending on your desired setup, it may be desirable to replace
+these after the fact (for example, to point at `/usr/bin/python` instead).
