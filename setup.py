@@ -22,6 +22,7 @@ setup(
     entry_points={
         'console_scripts': [
             'create_python_package_xmls = catkin_tools_python.create_python_package_xmls:main',
+            'fix_python_script_shebangs = catkin_tools_python.fix_python_script_shebangs:main',
         ],
         'catkin_tools.jobs': [
             'python = catkin_tools_python:description',
