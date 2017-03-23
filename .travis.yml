@@ -25,5 +25,6 @@ script:
   - create_python_package_xmls src
   - catkin config --isolate-devel --merge-install --install
   - catkin build
+  - fix_python_script_shebangs install/bin
   - find install
   - install/env.sh python -c 'import yaml; print yaml.__file__'
