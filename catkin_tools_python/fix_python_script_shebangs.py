@@ -32,18 +32,29 @@ def get_arg_parser():
 
 
 def fix_shebangs(bin_dir, python_exec):
-    for bin_file in os.listdir(bin_dir):
-        with open(os.path.join(bin_dir, bin_file)) as f:
-            first_line = f.readline(100)
-            if not first_line.startswith('#!') or 'python' not in first_line:
-                continue
-            first_line = '#!' + python_exec + '\n'
-            rest_of_file = f.read()
-        with open(os.path.join(bin_dir, bin_file), 'w') as f:
-            f.write(first_line)
-            f.write(rest_of_file)
+    modified_files = 0
+    if os.path.isdir(bin_dir):
+        for bin_file in os.listdir(bin_dir):
+            with open(os.path.join(bin_dir, bin_file)) as f:
+                first_line = f.readline(100)
+                if not first_line.startswith('#!') or 'python' not in first_line:
+                    # Either an actual binary, or a non-python shebang.
+                    continue
+                new_first_line = '#!' + python_exec + '\n'
+                if new_first_line == first_line:
+                    # Existing shebang already matches expected.
+                    continue
+                rest_of_file = f.read()
+            with open(os.path.join(bin_dir, bin_file), 'w') as f:
+                f.write(new_first_line + rest_of_file)
+            modified_files += 1
+    return modified_files
 
 
 def main():
     args = get_arg_parser().parse_args()
-    fix_shebangs(args.bindir, args.python)
+    ret = fix_shebangs(args.bindir, args.python)
+    if ret:
+        print "Modified %s script(s) found in [%s]" % (ret, args.bindir)
+    else:
+        print "No scripts modified in [%s]" % args.bindir
