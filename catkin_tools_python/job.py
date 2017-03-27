@@ -14,6 +14,7 @@
 
 import os
 import pkginfo
+import re
 import sys
 
 from catkin_tools.jobs.cmake import copy_install_manifest
@@ -89,20 +90,25 @@ def create_python_build_job(context, package, package_path, dependencies, force_
         dest_path=os.path.join(metadata_path, 'package.xml')
     ))
 
-    # Install package using pip into temporary staging area.
+    # Check if this package supports --single-version-externally-managed flag, as some old
+    # distutils packages don't, notably pyyaml. The following check is fast and cheap. A more
+    # comprehensive check would be to parse the results of python setup.py --help or similar,
+    # but that is expensive to do, since it has to occur at the start of the build.
+    with open(os.path.join(pkg_dir, 'setup.py')) as f:
+        setup_file_contents = f.read()
+    svem_supported = re.search('(from|import) setuptools', setup_file_contents)
+
+    # Python setup install
     stages.append(CommandStage(
-        'pip',
-        [PYTHON_EXEC, '-m', 'pip',
-            '--no-cache-dir',
-            'install', '.',
-            '--build', build_space,
-            '--force-reinstall',
-            '--ignore-installed',
-            '--no-binary=:all:',
-            '--upgrade',
-            '--no-deps',
-            '--prefix=%s' % os.path.join(build_space, 'install')],
-        cwd=pkg_dir))
+        'python',
+        ['/usr/bin/env', 'python', 'setup.py',
+         'build', '--build-base', build_space,
+         'install',
+         '--root', build_space,
+         '--prefix', 'install'] +
+        (['--single-version-externally-managed'] if svem_supported else []),
+        cwd=pkg_dir
+    ))
 
     # Special path rename required only on Debian.
     python_install_dir = get_python_install_dir()
