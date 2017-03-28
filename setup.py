@@ -22,6 +22,7 @@ setup(
     entry_points={
         'console_scripts': [
             'create_python_package_xmls = catkin_tools_python.create_python_package_xmls:main',
+            'create_pypi_gbp = catkin_tools_python.create_pypi_gbp:main',
             'fix_python_script_shebangs = catkin_tools_python.fix_python_script_shebangs:main',
         ],
         'catkin_tools.jobs': [
