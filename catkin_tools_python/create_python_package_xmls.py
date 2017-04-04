@@ -67,7 +67,7 @@ def get_arg_parser():
     parser.add_argument('--version', metavar='VERSION', type=str,
                         help='Version string to use, defaults to setup.py version.')
     parser.add_argument('--deps', metavar='PKGS', type=str, nargs='*',
-                        help='Extra dependencies to include in package.xml')
+                        help='Extra dependencies to include in package.xml', default=[])
     return parser
 
 
