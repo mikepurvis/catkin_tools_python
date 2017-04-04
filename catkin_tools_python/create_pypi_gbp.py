@@ -29,7 +29,7 @@ tracks:
     - wget ...
     - tar -xvf :{archive_dir_path}/upstream.tar.gz -C :{archive_dir_path}/:{name}-:{version}
       --strip-components 1
-    - create_python_package_xmls :{archive_dir_path}
+    - create_python_package_xmls --pkgdir :{archive_dir_path}/:{name}-:{version} --version :{version}
     - tar -cvzf :{archive_dir_path}/:{name}-:{version}.tar.gz -C :{archive_dir_path}/:{name}-:{version}
       .
     - git-bloom-import-upstream :{archive_dir_path}/:{name}-:{version}.tar.gz
