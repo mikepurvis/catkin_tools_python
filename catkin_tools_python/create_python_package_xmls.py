@@ -17,6 +17,7 @@ import em
 import os
 from pkginfo import UnpackedSDist
 import re
+import shutil
 import subprocess
 import sys
 from tempfile import mkdtemp
@@ -27,7 +28,7 @@ from catkin_tools_python import filters
 PACKAGE_XML_TEMPLATE = '''<?xml version="1.0"?>
 <package format="2">
   <name>@(filters.name(pkginfo.name))</name>
-  <version>@(filters.version(pkginfo.version))</version>
+  <version>@(version_override or filters.version(pkginfo.version))</version>
   <description>@(pkginfo.summary)</description>
 @[if pkginfo.maintainer and pkginfo.maintainer_email]@
   <maintainer email="@(pkginfo.maintainer_email)">@(pkginfo.maintainer)</maintainer>
@@ -45,7 +46,9 @@ PACKAGE_XML_TEMPLATE = '''<?xml version="1.0"?>
   <exec_depend>@(filters.name(dep_name))</exec_depend>
 @[end if]@
 @[end for]@
-
+@[for system_dep_name in system_dependencies]@
+  <exec_depend>@(system_dep_name)</exec_depend>
+@[end for]@
   <export><build_type>python</build_type></export>
 </package>
 '''
@@ -58,58 +61,83 @@ DESCRIPTION = 'Walk a source workspace, looking for paths containing a ' + \
 def get_arg_parser():
     parser = argparse.ArgumentParser(description=DESCRIPTION)
     parser.add_argument('roots', metavar='ROOT', type=str, nargs='*',
-                        help='Path to begin searching in.', default=['src'])
+                        help='Path to begin searching in.')
+    parser.add_argument('--pkgdir', metavar='DIR', type=str,
+                        help='Only one package, in this directory. If specified, no roots may be given.')
+    parser.add_argument('--version', metavar='VERSION', type=str,
+                        help='Version string to use, defaults to setup.py version.')
+    parser.add_argument('--deps', metavar='PKGS', type=str, nargs='*',
+                        help='Extra dependencies to include in package.xml')
     return parser
+
+
+def create_one_package_xml(pkg_dir, version_override=None, system_dependencies=[]):
+    pkginfo = UnpackedSDist(pkg_dir)
+    requires_file = os.path.join(pkg_dir, '%s.egg-info' % pkginfo.name, 'requires.txt')
+
+    # If the egg-info directory is missing from the sdist archive, generate it here.
+    egg_dir = None
+    if not os.path.exists(requires_file):
+        try:
+            egg_dir = mkdtemp()
+            subprocess.check_output(['python', 'setup.py', 'egg_info', '-e', egg_dir],
+                                     cwd=pkg_dir, stderr=subprocess.STDOUT)
+            requires_file = os.path.join(egg_dir, '%s.egg-info' % pkginfo.name, 'requires.txt')
+        except subprocess.CalledProcessError:
+            # Super old distutils packages (like pyyaml) don't support egg_info.
+            pass
+
+    # Parse through the egg-info/requires.txt file to determine package dependencies.
+    dependencies = []
+    if os.path.exists(requires_file):
+        with open(requires_file) as f:
+            for depline in f.readlines():
+                if depline.startswith('['):
+                    # We don't care about dependencies for docs, testing, etc.
+                    break
+                m = re.match('([a-zA-Z0-9_-]*)\s*([<>=]*)\s*([a-zA-Z0-9_.-]*)', depline)
+                if m and m.group(1):
+                    dependencies.append(m.groups())
+
+    if egg_dir:
+        shutil.rmtree(egg_dir)
+
+    # Generate a package.xml file for this package.
+    package_xml_path = os.path.join(pkg_dir, 'package.xml')
+    if os.path.exists(package_xml_path):
+        print('Exists:  %s' % package_xml_path)
+    else:
+        with open(package_xml_path, 'w') as f:
+            f.write(em.expand(PACKAGE_XML_TEMPLATE, {
+                'pkginfo': pkginfo,
+                'filters': filters,
+                'dependencies': dependencies,
+                'system_dependencies': system_dependencies,
+                'version_override': version_override
+                }))
+        print('Created: %s' % package_xml_path)
 
 
 def create_package_xmls(root_dir):
     if not os.path.exists(root_dir):
         print('Path [%s] does not exist, ignoring.' % root_dir)
         return
-    egg_dir = mkdtemp()
     for d in os.listdir(root_dir):
         pkg_dir = os.path.join(root_dir, d)
         if os.path.exists(os.path.join(pkg_dir, 'PKG-INFO')):
-            pkginfo = UnpackedSDist(pkg_dir)
-            requires_file = os.path.join(pkg_dir, '%s.egg-info' % pkginfo.name, 'requires.txt')
-
-            # If the egg-info directory is missing from the sdist archive, generate it here.
-            if not os.path.exists(requires_file):
-                try:
-                    subprocess.check_output(['python', 'setup.py', 'egg_info', '-e', egg_dir],
-                                             cwd=pkg_dir, stderr=subprocess.STDOUT)
-                    requires_file = os.path.join(egg_dir, '%s.egg-info' % pkginfo.name, 'requires.txt')
-                except subprocess.CalledProcessError:
-                    # Super old distutils packages (like pyyaml) don't support egg_info.
-                    pass
-
-            # Parse through the egg-info/requires.txt file to determine package dependencies.
-            dependencies = []
-            if os.path.exists(requires_file):
-                with open(requires_file) as f:
-                    for depline in f.readlines():
-                        if depline.startswith('['):
-                            # We don't care about dependencies for docs, testing, etc.
-                            break
-                        m = re.match('([a-zA-Z0-9_-]*)\s*([<>=]*)\s*([a-zA-Z0-9_.-]*)', depline)
-                        if m and m.group(1):
-                            dependencies.append(m.groups())
-
-            # Generate a package.xml file for this package.
-            package_xml_path = os.path.join(root_dir, d, 'package.xml')
-            if os.path.exists(package_xml_path):
-                print('Exists:  %s' % package_xml_path)
-            else:
-                with open(package_xml_path, 'w') as f:
-                    f.write(em.expand(PACKAGE_XML_TEMPLATE, {
-                        'pkginfo': pkginfo,
-                        'filters': filters,
-                        'dependencies': dependencies
-                        }))
-                print('Created: %s' % package_xml_path)
+            create_one_package_xml(pkg_dir)
 
 
 def main():
     args = get_arg_parser().parse_args()
-    for root in args.roots:
-        create_package_xmls(root)
+    if args.roots and args.pkgdir:
+        print("Only specify roots or --pkgdir, not both.")
+        sys.exit(1)
+    if args.pkgdir:
+        create_one_package_xml(args.pkgdir, args.version, args.deps)
+    else:
+        if args.version or args.deps:
+            print "Can't use --version or --deps when processing multiple packages."
+            sys.exit(1)
+        for root in args.roots:
+            create_package_xmls(root)
