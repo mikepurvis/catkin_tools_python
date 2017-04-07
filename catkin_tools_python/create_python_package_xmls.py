@@ -23,6 +23,10 @@ from tempfile import mkdtemp
 
 from catkin_tools_python import filters
 
+# fix for em unicode handling
+em.str = unicode
+em.Stream.write_old = em.Stream.write
+em.Stream.write = lambda self, data: em.Stream.write_old(self, data.encode('utf8'))
 
 PACKAGE_XML_TEMPLATE = '''<?xml version="1.0"?>
 <package format="2">

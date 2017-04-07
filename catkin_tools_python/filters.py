@@ -15,7 +15,9 @@
 mapping = {
     'PIL': 'python-imaging',
     'pyserial': 'python-serial',
-    'PyYAML': 'python-yaml'
+    'PyYAML': 'python-yaml',
+    'dxfgrabber': 'dxfgrabber',
+    'progressbar2': 'python-progressbar'
 }
 
 comparisons = {
