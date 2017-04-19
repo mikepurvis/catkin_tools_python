@@ -5,9 +5,9 @@ setup(
     packages=['catkin_tools_python'],
     version='0.1.0',
     author='Mike Purvis',
-    author_email='mpurvis@clearpath.ai',
+    author_email='mike@uwmike.com',
     maintainer='Mike Purvis',
-    maintainer_email='mpurvis@clearpath.ai',
+    maintainer_email='mike@uwmike.com',
     url='http://catkin-tools-python.readthedocs.org/',
     keywords=['catkin'],
     classifiers=[
