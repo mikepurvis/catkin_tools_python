@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name='catkin_tools_python',
     packages=['catkin_tools_python'],
-    version='0.0.0',
+    version='0.1.0',
     author='Mike Purvis',
     author_email='mpurvis@clearpath.ai',
     maintainer='Mike Purvis',
