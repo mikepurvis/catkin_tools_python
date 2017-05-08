@@ -15,6 +15,7 @@
 import os
 import pkginfo
 import re
+import shutil
 import sys
 
 from catkin_tools.jobs.cmake import copy_install_manifest
@@ -38,7 +39,10 @@ RSYNC_EXEC = which('rsync')
 
 
 def renamepath(logger, event_queue, source_path, dest_path):
-    """FunctionStage functor that renames a file."""
+    """ FunctionStage functor that renames a file or directory, overwriting the
+        destination if present. """
+    if os.path.exists(dest_path):
+        shutil.rmtree(dest_path)
     os.rename(source_path, dest_path)
     return 0
 
