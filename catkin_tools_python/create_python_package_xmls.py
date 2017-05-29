@@ -87,10 +87,10 @@ def create_one_package_xml(pkg_dir, version_override=None, system_dependencies=[
 
     # see if there is an egg-info directory in the pkg_dir
     for listing in os.listdir(pkg_dir):
-       if 'egg-info' in listing:
-           requires_file = os.path.join(pkg_dir, listing, 'requires.txt')
-           logging.debug("create_one_packages_xml: requires_file : %s" % requires_file)
-    
+        if 'egg-info' in listing:
+            requires_file = os.path.join(pkg_dir, listing, 'requires.txt')
+            logging.debug("create_one_packages_xml: requires_file : %s" % requires_file)
+
     # If the egg-info directory is missing from the sdist archive, generate it here.
     egg_dir = None
     if not os.path.exists(requires_file):
@@ -98,7 +98,7 @@ def create_one_package_xml(pkg_dir, version_override=None, system_dependencies=[
         try:
             egg_dir = mkdtemp()
             subprocess.check_output(['python', 'setup.py', 'egg_info', '-e', egg_dir],
-                                     cwd=pkg_dir, stderr=subprocess.STDOUT)
+                                    cwd=pkg_dir, stderr=subprocess.STDOUT)
             logging.debug("create_one_packags_xml: generating new egg directory ")
             requires_file = os.path.join(egg_dir, '%s.egg-info' % pkginfo.name, 'requires.txt')
         except subprocess.CalledProcessError:
@@ -114,14 +114,14 @@ def create_one_package_xml(pkg_dir, version_override=None, system_dependencies=[
                 depline = depline.rstrip()
                 logging.debug("Processing %s" % depline)
                 if depline.startswith('['):
-                    logging.debug("Skipping %s " % depline)
+                    logging.debug("Doc/testing dependency %s -- no more dependency needed breaking from loop" % depline)
                     # We don't care about dependencies for docs, testing, etc.
                     break
-               # match the dependency and the version if one is given, version is optional 
+                # match the dependency and the version if one is given, version is optional
                 m = re.match('([a-zA-Z0-9_-]*)\s*([<>=]*)\s*([a-zA-Z0-9_.-]*)', depline)
                 if m and m.group(1):
-                   logging.debug("Adding %s to the dependency list" % m.group(1))
-                   dependencies.append(m.groups())
+                    logging.debug("Adding %s to the dependency list" % m.group(1))
+                    dependencies.append(m.groups())
 
     logging.debug("Dependencies %s" % pprint.pformat(dependencies))
     if egg_dir:
@@ -133,7 +133,7 @@ def create_one_package_xml(pkg_dir, version_override=None, system_dependencies=[
         print('Exists:  %s' % package_xml_path)
     else:
         logging.debug("Writing package.xml file with the template contents")
-        
+
         with open(package_xml_path, 'w') as f:
             f.write(em.expand(PACKAGE_XML_TEMPLATE, {
                 'pkginfo': pkginfo,
