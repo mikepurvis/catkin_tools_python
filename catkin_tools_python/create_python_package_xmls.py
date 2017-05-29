@@ -21,6 +21,8 @@ import shutil
 import subprocess
 import sys
 from tempfile import mkdtemp
+import logging
+import pprint
 
 from catkin_tools_python import filters
 
@@ -72,20 +74,32 @@ def get_arg_parser():
                         help='Version string to use, defaults to setup.py version.')
     parser.add_argument('--deps', metavar='PKGS', type=str, nargs='*',
                         help='Extra dependencies to include in package.xml', default=[])
+    parser.add_argument('--debug', action='store_true', help="Turn on debugging")
     return parser
 
 
 def create_one_package_xml(pkg_dir, version_override=None, system_dependencies=[]):
+    logging.debug("create_one_packages_xml: pkg_dir %s:" % pkg_dir)
     pkginfo = UnpackedSDist(pkg_dir)
+
+    # default value for requires.txt
     requires_file = os.path.join(pkg_dir, '%s.egg-info' % pkginfo.name, 'requires.txt')
+
+    # see if there is an egg-info directory in the pkg_dir
+    for listing in os.listdir(pkg_dir):
+        if 'egg-info' in listing:
+            requires_file = os.path.join(pkg_dir, listing, 'requires.txt')
+            logging.debug("create_one_packages_xml: requires_file : %s" % requires_file)
 
     # If the egg-info directory is missing from the sdist archive, generate it here.
     egg_dir = None
     if not os.path.exists(requires_file):
+        logging.debug("create_one_packages_xml: requires_file does not exist try to generate it")
         try:
             egg_dir = mkdtemp()
             subprocess.check_output(['python', 'setup.py', 'egg_info', '-e', egg_dir],
-                                     cwd=pkg_dir, stderr=subprocess.STDOUT)
+                                    cwd=pkg_dir, stderr=subprocess.STDOUT)
+            logging.debug("create_one_packags_xml: generating new egg directory ")
             requires_file = os.path.join(egg_dir, '%s.egg-info' % pkginfo.name, 'requires.txt')
         except subprocess.CalledProcessError:
             # Super old distutils packages (like pyyaml) don't support egg_info.
@@ -93,16 +107,23 @@ def create_one_package_xml(pkg_dir, version_override=None, system_dependencies=[
 
     # Parse through the egg-info/requires.txt file to determine package dependencies.
     dependencies = []
+    logging.debug("Requires file: %s" % requires_file)
     if os.path.exists(requires_file):
         with open(requires_file) as f:
             for depline in f.readlines():
+                depline = depline.rstrip()
+                logging.debug("Processing %s" % depline)
                 if depline.startswith('['):
+                    logging.debug("Doc/testing dependency %s -- no more dependency needed breaking from loop" % depline)
                     # We don't care about dependencies for docs, testing, etc.
                     break
+                # match the dependency and the version if one is given, version is optional
                 m = re.match('([a-zA-Z0-9_-]*)\s*([<>=]*)\s*([a-zA-Z0-9_.-]*)', depline)
                 if m and m.group(1):
+                    logging.debug("Adding %s to the dependency list" % m.group(1))
                     dependencies.append(m.groups())
 
+    logging.debug("Dependencies %s" % pprint.pformat(dependencies))
     if egg_dir:
         shutil.rmtree(egg_dir)
 
@@ -111,6 +132,8 @@ def create_one_package_xml(pkg_dir, version_override=None, system_dependencies=[
     if os.path.exists(package_xml_path):
         print('Exists:  %s' % package_xml_path)
     else:
+        logging.debug("Writing package.xml file with the template contents")
+
         with open(package_xml_path, 'w') as f:
             f.write(em.expand(PACKAGE_XML_TEMPLATE, {
                 'pkginfo': pkginfo,
@@ -134,6 +157,11 @@ def create_package_xmls(root_dir):
 
 def main():
     args = get_arg_parser().parse_args()
+
+    # enable debugging
+    LOGLEVEL = "DEBUG" if args.debug else None
+    logging.basicConfig(level=LOGLEVEL)
+
     if args.roots and args.pkgdir:
         print("Only specify roots or --pkgdir, not both.")
         sys.exit(1)
