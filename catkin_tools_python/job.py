@@ -62,6 +62,11 @@ def create_python_build_job(context, package, package_path, dependencies, force_
     # up by the executions in the loadenv stage.
     job_env = dict(os.environ)
 
+    if 'CC' in job_env:
+        del job_env['CC']
+    if 'CXX' in job_env:
+        del job_env['CXX']
+
     # Get actual staging path
     dest_path = context.package_dest_path(package)
     final_path = context.package_final_path(package)
