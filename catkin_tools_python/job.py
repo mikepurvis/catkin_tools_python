@@ -62,10 +62,15 @@ def create_python_build_job(context, package, package_path, dependencies, force_
     # up by the executions in the loadenv stage.
     job_env = dict(os.environ)
 
+    # Some Python packages (in particular matplotlib) seem to struggle with
+    # being built by ccache, so strip that out if present.
+    def strip_ccache(cc_str):
+        parts = cc_str.split()
+        return ' '.join([part for part in parts if not 'ccache' in part])
     if 'CC' in job_env:
-        del job_env['CC']
+        job_env['CC'] = strip_ccache(job_env['CC'])
     if 'CXX' in job_env:
-        del job_env['CXX']
+        job_env['CXX'] = strip_ccache(job_env['CXX'])
 
     # Get actual staging path
     dest_path = context.package_dest_path(package)
