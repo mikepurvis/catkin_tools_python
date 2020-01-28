@@ -27,9 +27,12 @@ import pprint
 from catkin_tools_python import filters
 
 # fix for em unicode handling
-em.str = unicode
-em.Stream.write_old = em.Stream.write
-em.Stream.write = lambda self, data: em.Stream.write_old(self, data.encode('utf8'))
+try:
+    em.str = unicode
+    em.Stream.write_old = em.Stream.write
+    em.Stream.write = lambda self, data: em.Stream.write_old(self, data.encode('utf8'))
+except NameError:
+    pass
 
 PACKAGE_XML_TEMPLATE = '''<?xml version="1.0"?>
 <package format="2">
@@ -169,7 +172,7 @@ def main():
         create_one_package_xml(args.pkgdir, args.version, args.deps)
     else:
         if args.version or args.deps:
-            print "Can't use --version or --deps when processing multiple packages."
+            print("Can't use --version or --deps when processing multiple packages.")
             sys.exit(1)
         for root in args.roots:
             create_package_xmls(root)
