@@ -16,6 +16,7 @@ import os
 import pkginfo
 import re
 import shutil
+import subprocess
 import sys
 
 from catkin_tools.jobs.cmake import copy_install_manifest
@@ -111,6 +112,14 @@ def determine_python_exec(cmake_args):
         # remove the substring
         PYTHON_EXEC = python_directive[0].replace('-DPYTHON_EXECUTABLE=', "")
 
+def determine_python_version():
+
+    check_version = subprocess.check_output([PYTHON_EXEC, '-c', 'import sys; print("%s %s" %(sys.version_info.major, sys.version_info.minor))']).decode().split()
+    python_version = { 'major' : check_version[0],
+                       'minor' : check_version[1]
+                     }
+    return python_version
+
 
 def create_python_build_job(context, package, package_path, dependencies, force_cmake, pre_clean):
 
@@ -144,6 +153,9 @@ def create_python_build_job(context, package, package_path, dependencies, force_
 
     # determine if python executable has been passed in
     determine_python_exec(context.cmake_args)
+
+    # determine python version being used
+    python_version = determine_python_version()
 
     # Create job stages
     stages = []
@@ -195,11 +207,10 @@ def create_python_build_job(context, package, package_path, dependencies, force_
 
     # Special path rename required only on Debian.
     python_install_dir = get_python_install_dir()
-    python_version = sys.version_info
     if 'dist-packages' in python_install_dir:
         python_install_dir_site = python_install_dir.replace('dist-packages', 'site-packages')
-        if python_version.major == 3:
-            python_install_dir = python_install_dir.replace('python%s.%s' % (python_version.major, python_version.minor), 'python%s' % python_version.major)
+        if python_version['major'] == "3":
+            python_install_dir = python_install_dir.replace('python%s.%s' % (python_version['major'], python_version['minor']), 'python%s' % python_version['major'])
 
         stages.append(FunctionStage(
             'debian-fix',
@@ -251,13 +262,13 @@ def create_python_build_job(context, package, package_path, dependencies, force_
     ))
 
     # fix the setup.sh which exports PYTHONPATH incorrectly for how we install python3 vs python3.5
-    if python_version.major == 3:
+    if python_version['major'] == "3":
         stages.append(FunctionStage(
             'fix_python3_install_space',
             fix_python3_install_space,
             install_space=dest_path,
-            old_python="%s.%s" % (python_version.major, python_version.minor),
-            new_python=python_version.major,
+            old_python="%s.%s" % (python_version['major'], python_version['minor']),
+            new_python=python_version['major'],
             locked_resource='installspace'
         ))
 
