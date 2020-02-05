@@ -2,9 +2,9 @@ sudo: false
 language: generic
 matrix:
   include:
-    - dist: trusty
+    - dist: xenial
       os: linux
-      env: PYTHON=/usr/bin/python2.7
+      env: PYTHON=/usr/bin/python3
     - os: osx
       env: PYTHON=/usr/bin/python
 
