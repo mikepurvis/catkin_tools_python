@@ -27,4 +27,4 @@ script:
   - catkin build
   - fix_python_script_shebangs install/bin
   - find install
-  - install/env.sh python -c 'import yaml; print yaml.__file__'
+  - install/env.sh python -c 'import yaml; print(yaml.__file__)'
