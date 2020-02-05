@@ -58,6 +58,7 @@ def fix_shebangs(logger, event_queue, pkg_dir, python_exec):
     logger.out("Changing shebangs for default python")
     for root, dirnames, file_list in os.walk(pkg_dir):
       for filename in file_list:
+        modified = False
         if filename.endswith(('.py')):
             logger.out("Processing file ", filename)
             filepath = os.path.join(root, filename)
@@ -69,11 +70,17 @@ def fix_shebangs(logger, event_queue, pkg_dir, python_exec):
                     logger.out("Unicode error caught skipping file : ", filepath)
                     continue
 
-            # ensure our wrapper is pointed to our install space
-            if re.match("#!/usr/bin/python$", contents):
+            # ensure we are using the correct python
+            if re.match("#!/usr/bin/python(\s|$)", contents):
                 logger.out("Modifying shebang from global python to python exec")
                 contents = contents.replace('#!/usr/bin/python', '#!%s' % python_exec, 1)
+                modified = True
+            elif re.match("#!/usr/bin/env python(\s|$)", contents):
+                logger.out("Modifying shebang from using env python to python exec")
+                contents = contents.replace('#!/usr/bin/env python', '#!%s' % python_exec, 1)
+                modified = True
 
+            if modified:
                 logger.out("Writing changes  to %s" % filename)
                 with open(filepath, 'w',  encoding="utf-8") as f:
                     f.write(contents)
@@ -107,6 +114,7 @@ def determine_python_exec(cmake_args):
     """Parse the cmake args to determine if PYTHON_EXECUTATBLE was set.
        If it was not set it will default to the python that is executing catkin
     """
+    global PYTHON_EXEC
     python_directive = [ x for x in cmake_args if 'PYTHON_EXECUTABLE' in x ]
     if python_directive:
         # remove the substring
