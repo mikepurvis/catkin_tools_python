@@ -34,6 +34,7 @@ try:
 except NameError:
     pass
 
+>>>>>>> remove unicode handling for python2 em
 PACKAGE_XML_TEMPLATE = '''<?xml version="1.0"?>
 <package format="2">
   <name>@(filters.name(pkginfo.name))</name>
@@ -176,3 +177,4 @@ def main():
             sys.exit(1)
         for root in args.roots:
             create_package_xmls(root)
+
