@@ -176,4 +176,3 @@ def main():
             sys.exit(1)
         for root in args.roots:
             create_package_xmls(root)
-

@@ -39,7 +39,6 @@ PYTHON_EXEC = os.environ.get('PYTHON', sys.executable)
 RSYNC_EXEC = which('rsync')
 
 
-
 def renamepath(logger, event_queue, source_path, dest_path):
     """ FunctionStage functor that renames a file or directory, overwriting the
         destination if present. """
@@ -62,11 +61,10 @@ def fix_shebangs(logger, event_queue, pkg_dir, python_exec):
         if filename.endswith(('.py')):
             logger.out("Processing file ", filename)
             filepath = os.path.join(root, filename)
-            with open(filepath, 'r', encoding="utf-8") as f:
+            with open(filepath, 'r') as f:
                 try:
                     contents = f.read()
                 except UnicodeDecodeError:
-                    # there is an a file in cheetah that is encoded in latin for now skipping it
                     logger.out("Unicode error caught skipping file : ", filepath)
                     continue
 
@@ -82,7 +80,7 @@ def fix_shebangs(logger, event_queue, pkg_dir, python_exec):
 
             if modified:
                 logger.out("Writing changes  to %s" % filename)
-                with open(filepath, 'w',  encoding="utf-8") as f:
+                with open(filepath, 'w') as f:
                     f.write(contents)
 
     return 0
@@ -99,13 +97,13 @@ def fix_python3_install_space(logger, event_queue, install_space, old_python, ne
     new_python_path = "/lib/python%s" % new_python
     filepath = os.path.join(install_space, "setup.sh")
     if os.path.exists(filepath):
-        with open(filepath, 'r', encoding="utf-8") as f:
+        with open(filepath, 'r') as f:
             contents = f.read()
             contents = contents.replace(old_python_path, new_python_path)
 
         if contents:
             logger.out("Modifying python path from %s to %s in %s" % (old_python_path, new_python_path, filepath))
-            with open(filepath, 'w', encoding="utf-8") as f:
+            with open(filepath, 'w') as f:
                 f.write(contents)
 
     return 0
@@ -121,10 +119,13 @@ def determine_python_exec(cmake_args):
         PYTHON_EXEC = python_directive[0].replace('-DPYTHON_EXECUTABLE=', "")
 
 def determine_python_version():
-
-    check_version = subprocess.check_output([PYTHON_EXEC, '-c', 'import sys; print("%s %s" %(sys.version_info.major, sys.version_info.minor))']).decode().split()
-    python_version = { 'major' : check_version[0],
-                       'minor' : check_version[1]
+    """Determine the major and minor python version information from the python
+       that we are building for.
+    """
+    py_version_cmd = 'import sys; print("%s %s" % sys.version_info[0:2])'
+    check_version = subprocess.check_output([PYTHON_EXEC, '-c', py_version_cmd]).split()
+    python_version = { 'major' : int(check_version[0]),
+                       'minor' : int(check_version[1])
                      }
     return python_version
 
@@ -217,7 +218,7 @@ def create_python_build_job(context, package, package_path, dependencies, force_
     python_install_dir = get_python_install_dir()
     if 'dist-packages' in python_install_dir:
         python_install_dir_site = python_install_dir.replace('dist-packages', 'site-packages')
-        if python_version['major'] == "3":
+        if python_version['major'] == 3:
             python_install_dir = python_install_dir.replace('python%s.%s' % (python_version['major'], python_version['minor']), 'python%s' % python_version['major'])
 
         stages.append(FunctionStage(
@@ -270,7 +271,7 @@ def create_python_build_job(context, package, package_path, dependencies, force_
     ))
 
     # fix the setup.sh which exports PYTHONPATH incorrectly for how we install python3 vs python3.5
-    if python_version['major'] == "3":
+    if python_version['major'] == 3:
         stages.append(FunctionStage(
             'fix_python3_install_space',
             fix_python3_install_space,
