@@ -6,7 +6,7 @@ matrix:
       os: linux
 
 install:
-  - virtualenv ~/venv /usr/bin/python3
+  - virtualenv ~/venv -p /usr/bin/python3
   - unset PYTHON
   - source ~/venv/bin/activate
   - pip install --upgrade pip
