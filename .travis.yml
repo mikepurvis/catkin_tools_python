@@ -4,12 +4,9 @@ matrix:
   include:
     - dist: xenial
       os: linux
-      env: PYTHON=/usr/bin/python3
-    - os: osx
-      env: PYTHON=/usr/bin/python
 
 install:
-  - virtualenv ~/venv -p $PYTHON
+  - virtualenv ~/venv /usr/bin/python3
   - unset PYTHON
   - source ~/venv/bin/activate
   - pip install --upgrade pip
