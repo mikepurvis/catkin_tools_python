@@ -61,26 +61,23 @@ def fix_shebangs(logger, event_queue, pkg_dir, python_exec):
         if filename.endswith(('.py')):
             logger.out("Processing file ", filename)
             filepath = os.path.join(root, filename)
-            with open(filepath, 'r') as f:
-                try:
-                    contents = f.read()
-                except UnicodeDecodeError:
-                    logger.out("Unicode error caught skipping file : ", filepath)
-                    continue
+            with open(filepath, 'rb') as f:
+                contents = f.read()
 
+            new_shebang = ('#!%s' % python_exec).encode()
             # ensure we are using the correct python
-            if re.match("#!/usr/bin/python(\s|$)", contents):
+            if re.match(b"#!/usr/bin/python(\s|$)", contents):
                 logger.out("Modifying shebang from global python to python exec")
-                contents = contents.replace('#!/usr/bin/python', '#!%s' % python_exec, 1)
+                contents = contents.replace(b'#!/usr/bin/python', new_shabang, 1)
                 modified = True
-            elif re.match("#!/usr/bin/env python(\s|$)", contents):
+            elif re.match(b"#!/usr/bin/env python(\s|$)", contents):
                 logger.out("Modifying shebang from using env python to python exec")
-                contents = contents.replace('#!/usr/bin/env python', '#!%s' % python_exec, 1)
+                contents = contents.replace(b'#!/usr/bin/env python', new_shebang, 1)
                 modified = True
 
             if modified:
                 logger.out("Writing changes  to %s" % filename)
-                with open(filepath, 'w') as f:
+                with open(filepath, 'wb') as f:
                     f.write(contents)
 
     return 0
@@ -93,17 +90,17 @@ def fix_python3_install_space(logger, event_queue, install_space, old_python, ne
     """Modify the setup.sh in the python installs to have the correct PYTHONPATH
        :param: install_space: packages install space where the setup.sh script will be
     """
-    old_python_path = "/lib/python%s" % old_python
-    new_python_path = "/lib/python%s" % new_python
+    old_python_path = ("/lib/python%s" % old_python).encode()
+    new_python_path = ("/lib/python%s" % new_python).encode()
     filepath = os.path.join(install_space, "setup.sh")
     if os.path.exists(filepath):
-        with open(filepath, 'r') as f:
+        with open(filepath, 'rb') as f:
             contents = f.read()
             contents = contents.replace(old_python_path, new_python_path)
 
         if contents:
             logger.out("Modifying python path from %s to %s in %s" % (old_python_path, new_python_path, filepath))
-            with open(filepath, 'w') as f:
+            with open(filepath, 'wb') as f:
                 f.write(contents)
 
     return 0
