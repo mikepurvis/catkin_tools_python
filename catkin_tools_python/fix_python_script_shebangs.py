@@ -55,6 +55,6 @@ def main():
     args = get_arg_parser().parse_args()
     ret = fix_shebangs(args.bindir, args.python)
     if ret:
-        print "Modified %s script(s) found in [%s]" % (ret, args.bindir)
+        print("Modified %s script(s) found in [%s]" % (ret, args.bindir))
     else:
-        print "No scripts modified in [%s]" % args.bindir
+        print("No scripts modified in [%s]" % args.bindir)

@@ -16,6 +16,7 @@ import os
 import pkginfo
 import re
 import shutil
+import subprocess
 import sys
 
 from catkin_tools.jobs.cmake import copy_install_manifest
@@ -43,8 +44,87 @@ def renamepath(logger, event_queue, source_path, dest_path):
         destination if present. """
     if os.path.exists(dest_path):
         shutil.rmtree(dest_path)
-    os.rename(source_path, dest_path)
+    os.renames(source_path, dest_path)
     return 0
+
+
+def fix_shebangs(logger, event_queue, pkg_dir, python_exec):
+    """Process all files and change the shebangs if they are set to the global python
+       to now use the python exec that we explicitly asked for.  This will ensure that 
+       if you are building for python3 and source is using python that it will not use 
+       the default version on the machine
+    """
+    logger.out("Changing shebangs for default python")
+    for root, dirnames, file_list in os.walk(pkg_dir):
+      for filename in file_list:
+        modified = False
+        if filename.endswith(('.py')):
+            logger.out("Processing file ", filename)
+            filepath = os.path.join(root, filename)
+            with open(filepath, 'rb') as f:
+                contents = f.read()
+
+            new_shebang = ('#!%s' % python_exec).encode()
+            # ensure we are using the correct python
+            if re.match(b"#!/usr/bin/python(\s|$)", contents):
+                logger.out("Modifying shebang from global python to python exec")
+                contents = contents.replace(b'#!/usr/bin/python', new_shebang, 1)
+                modified = True
+            elif re.match(b"#!/usr/bin/env python(\s|$)", contents):
+                logger.out("Modifying shebang from using env python to python exec")
+                contents = contents.replace(b'#!/usr/bin/env python', new_shebang, 1)
+                modified = True
+
+            if modified:
+                logger.out("Writing changes  to %s" % filename)
+                with open(filepath, 'wb') as f:
+                    f.write(contents)
+
+    return 0
+
+# catkin defaults the env to the pythonpath/version that is being used
+# this was fine for 2.7 but since we are forcing everything to python3
+# we need to fix the PYTHONPATH that is set by catkin in setup.sh
+# It doesn't look like there is anyway to override how catkin is setting PYTHONPATH here
+def fix_python3_install_space(logger, event_queue, install_space, old_python, new_python):
+    """Modify the setup.sh in the python installs to have the correct PYTHONPATH
+       :param: install_space: packages install space where the setup.sh script will be
+    """
+    old_python_path = ("/lib/python%s" % old_python).encode()
+    new_python_path = ("/lib/python%s" % new_python).encode()
+    filepath = os.path.join(install_space, "setup.sh")
+    if os.path.exists(filepath):
+        with open(filepath, 'rb') as f:
+            contents = f.read()
+            contents = contents.replace(old_python_path, new_python_path)
+
+        if contents:
+            logger.out("Modifying python path from %s to %s in %s" % (old_python_path, new_python_path, filepath))
+            with open(filepath, 'wb') as f:
+                f.write(contents)
+
+    return 0
+
+def determine_python_exec(cmake_args):
+    """Parse the cmake args to determine if PYTHON_EXECUTATBLE was set.
+       If it was not set it will default to the python that is executing catkin
+    """
+    global PYTHON_EXEC
+    python_directive = [ x for x in cmake_args if 'PYTHON_EXECUTABLE' in x ]
+    if python_directive:
+        # remove the substring
+        PYTHON_EXEC = python_directive[0].replace('-DPYTHON_EXECUTABLE=', "")
+
+def determine_python_version():
+    """Determine the major and minor python version information from the python
+       that we are building for.
+    """
+    py_version_cmd = 'import sys; print("%s %s" % sys.version_info[0:2])'
+    check_version = subprocess.check_output([PYTHON_EXEC, '-c', py_version_cmd]).split()
+    python_version = { 'major' : int(check_version[0]),
+                       'minor' : int(check_version[1])
+                     }
+    return python_version
 
 
 def create_python_build_job(context, package, package_path, dependencies, force_cmake, pre_clean):
@@ -75,6 +155,13 @@ def create_python_build_job(context, package, package_path, dependencies, force_
     # Get actual staging path
     dest_path = context.package_dest_path(package)
     final_path = context.package_final_path(package)
+
+
+    # determine if python executable has been passed in
+    determine_python_exec(context.cmake_args)
+
+    # determine python version being used
+    python_version = determine_python_version()
 
     # Create job stages
     stages = []
@@ -115,7 +202,7 @@ def create_python_build_job(context, package, package_path, dependencies, force_
     # Python setup install
     stages.append(CommandStage(
         'python',
-        ['/usr/bin/env', 'python', 'setup.py',
+        [PYTHON_EXEC, 'setup.py',
          'build', '--build-base', build_space,
          'install',
          '--root', build_space,
@@ -128,6 +215,9 @@ def create_python_build_job(context, package, package_path, dependencies, force_
     python_install_dir = get_python_install_dir()
     if 'dist-packages' in python_install_dir:
         python_install_dir_site = python_install_dir.replace('dist-packages', 'site-packages')
+        if python_version['major'] == 3:
+            python_install_dir = python_install_dir.replace('python%s.%s' % (python_version['major'], python_version['minor']), 'python%s' % python_version['major'])
+
         stages.append(FunctionStage(
             'debian-fix',
             renamepath,
@@ -154,6 +244,14 @@ def create_python_build_job(context, package, package_path, dependencies, force_
         cwd=pkg_dir,
         locked_resource='installspace'))
 
+    # fix shebangs that point to the global space to use the python exec
+    stages.append(FunctionStage(
+        'fix-shebang',
+        fix_shebangs,
+        pkg_dir=dest_path,
+        python_exec=PYTHON_EXEC,
+        locked_resource=None if context.isolate_install else 'installspace'))
+
     # Determine the location where the setup.sh file should be created
     stages.append(FunctionStage(
         'setupgen',
@@ -168,6 +266,17 @@ def create_python_build_job(context, package, package_path, dependencies, force_
         context=context,
         install_target=dest_path
     ))
+
+    # fix the setup.sh which exports PYTHONPATH incorrectly for how we install python3 vs python3.5
+    if python_version['major'] == 3:
+        stages.append(FunctionStage(
+            'fix_python3_install_space',
+            fix_python3_install_space,
+            install_space=dest_path,
+            old_python="%s.%s" % (python_version['major'], python_version['minor']),
+            new_python=python_version['major'],
+            locked_resource='installspace'
+        ))
 
     return Job(
         jid=package.name,

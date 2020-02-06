@@ -2,14 +2,11 @@ sudo: false
 language: generic
 matrix:
   include:
-    - dist: trusty
+    - dist: xenial
       os: linux
-      env: PYTHON=/usr/bin/python2.7
-    - os: osx
-      env: PYTHON=/usr/bin/python
 
 install:
-  - virtualenv ~/venv -p $PYTHON
+  - virtualenv ~/venv -p /usr/bin/python3
   - unset PYTHON
   - source ~/venv/bin/activate
   - pip install --upgrade pip
@@ -27,4 +24,4 @@ script:
   - catkin build
   - fix_python_script_shebangs install/bin
   - find install
-  - install/env.sh python -c 'import yaml; print yaml.__file__'
+  - install/env.sh python -c 'import yaml; print(yaml.__file__)'
