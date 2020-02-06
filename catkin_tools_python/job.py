@@ -68,7 +68,7 @@ def fix_shebangs(logger, event_queue, pkg_dir, python_exec):
             # ensure we are using the correct python
             if re.match(b"#!/usr/bin/python(\s|$)", contents):
                 logger.out("Modifying shebang from global python to python exec")
-                contents = contents.replace(b'#!/usr/bin/python', new_shabang, 1)
+                contents = contents.replace(b'#!/usr/bin/python', new_shebang, 1)
                 modified = True
             elif re.match(b"#!/usr/bin/env python(\s|$)", contents):
                 logger.out("Modifying shebang from using env python to python exec")
