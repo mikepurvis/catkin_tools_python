@@ -78,7 +78,7 @@ def main():
             subprocess.check_output(['git', 'push', 'origin', 'master'],
                                     cwd=tempdir)
         else:
-            print "No change to tracks.yaml."
+            print("No change to tracks.yaml.")
 
     finally:
         shutil.rmtree(tempdir)
