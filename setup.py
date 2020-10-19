@@ -27,6 +27,7 @@ setup(
         ],
         'catkin_tools.jobs': [
             'python = catkin_tools_python:description',
+            'python-pip = catkin_tools_python:pip_description',
         ]
     },
     install_requires=[

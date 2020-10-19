@@ -21,3 +21,10 @@ description = dict(
     create_build_job=create_python_build_job,
     create_clean_job=create_python_clean_job
 )
+
+pip_description = dict(
+    build_type='python-pip',
+    description='Builds a plain python package.',
+    create_build_job=create_python_build_job,
+    create_clean_job=create_python_clean_job
+)
