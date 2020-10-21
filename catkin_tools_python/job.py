@@ -59,7 +59,7 @@ def fix_shebangs(logger, event_queue, pkg_dir, python_exec):
       for filename in file_list:
         modified = False
         if filename.endswith(('.py')):
-            logger.out("Processing file ", filename)
+            logger.out("Processing file " + filename)
             filepath = os.path.join(root, filename)
             with open(filepath, 'rb') as f:
                 contents = f.read()
@@ -142,6 +142,9 @@ def create_python_build_job(context, package, package_path, dependencies, force_
     # up by the executions in the loadenv stage.
     job_env = dict(os.environ)
 
+    # get the build_type for the package
+    build_type = package.get_build_type()
+
     # Some Python packages (in particular matplotlib) seem to struggle with
     # being built by ccache, so strip that out if present.
     def strip_ccache(cc_str):
@@ -191,25 +194,42 @@ def create_python_build_job(context, package, package_path, dependencies, force_
         dest_path=os.path.join(metadata_path, 'package.xml')
     ))
 
-    # Check if this package supports --single-version-externally-managed flag, as some old
-    # distutils packages don't, notably pyyaml. The following check is fast and cheap. A more
-    # comprehensive check would be to parse the results of python setup.py --help or similar,
-    # but that is expensive to do, since it has to occur at the start of the build.
-    with open(os.path.join(pkg_dir, 'setup.py')) as f:
-        setup_file_contents = f.read()
-    svem_supported = re.search('(from|import) setuptools', setup_file_contents)
+    # perform the install based on the build type
+    if build_type == "python":
+        # Check if this package supports --single-version-externally-managed flag, as some old
+        # distutils packages don't, notably pyyaml. The following check is fast and cheap. A more
+        # comprehensive check would be to parse the results of python setup.py --help or similar,
+        # but that is expensive to do, since it has to occur at the start of the build.
+        with open(os.path.join(pkg_dir, 'setup.py')) as f:
+            setup_file_contents = f.read()
+        svem_supported = re.search('(from|import) setuptools', setup_file_contents)
 
-    # Python setup install
-    stages.append(CommandStage(
-        'python',
-        [PYTHON_EXEC, 'setup.py',
-         'build', '--build-base', build_space,
-         'install',
-         '--root', build_space,
-         '--prefix', 'install'] +
-        (['--single-version-externally-managed'] if svem_supported else []),
-        cwd=pkg_dir
-    ))
+        # Python setup install
+        stages.append(CommandStage(
+            'python',
+            [PYTHON_EXEC, 'setup.py',
+            'build', '--build-base', build_space,
+            'install',
+            '--root', build_space,
+            '--prefix', 'install'] +
+            (['--single-version-externally-managed'] if svem_supported else []),
+            cwd=pkg_dir
+        ))
+    elif build_type == "python-pip":
+        req_file = os.path.join(pkg_dir, "requirements.txt")
+
+        # Python setup install
+        stages.append(CommandStage(
+            'python',
+            [PYTHON_EXEC, '-m',
+            'pip', 'install',
+            '-r', req_file,
+            '--no-deps',
+            '--no-compile',
+            '--root', build_space,
+            '--prefix', 'install'],
+            cwd=pkg_dir
+        ))
 
     # Special path rename required only on Debian.
     python_install_dir = get_python_install_dir()
